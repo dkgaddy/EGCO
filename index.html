@@ -4,19 +4,723 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EGCO – Easy Guide to Chess Openings</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sq: min(
+        calc((100vh - 58px - 60px) / 8),
+        calc((100vw - 380px - 60px) / 8)
+      );
+      --board: calc(8 * var(--sq));
+      --bg:         #0d1117;
+      --header-bg:  #0b2545;
+      --sidebar-bg: #f4e8d0;
+      --accent:     #c9a456;
+      --accent-dim: #7a5c14;
+      --text:       #dcdfe4;
+      --dim:        #717880;
+      --light-sq:   #f0d9b5;
+      --dark-sq:    #b58863;
+      --last-light: rgba(205, 210, 106, 0.7);
+      --last-dark:  rgba(170, 162, 58, 0.7);
+      --sidebar-w:  360px;
+      /* Sidebar light-theme colors */
+      --sb-text:    #2a1f0e;
+      --sb-dim:     #7a6040;
+      --sb-accent:  #7a5c14;
+      --sb-box-bg:  #ead9b8;
+      --sb-box-bd:  #c8a870;
+      --sb-title:   #6a5030;
+      --sb-divider: #d4b98a;
+    }
+
+    html, body { height: 100%; }
     body {
-      margin: 0;
-      background: #1a1a1a;
-      color: #ddd;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ════════════════ HEADER ════════════════ */
+    #header {
+      background: var(--header-bg);
+      border-bottom: 1px solid #0d3060;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      gap: 24px;
+      flex-shrink: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    #logo {
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 3px;
+      line-height: 1;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #logo span {
+      display: block;
+      font-size: 10px;
       font-family: sans-serif;
+      font-weight: 400;
+      color: #8ab4d4;
+      letter-spacing: 1.5px;
+      margin-top: 2px;
+    }
+    #search-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 520px;
+    }
+    #search-input {
+      width: 100%;
+      background: #0e2d52;
+      border: 1px solid #1a4070;
+      border-radius: 7px;
+      color: #ffffff;
+      font-size: 14px;
+      padding: 9px 16px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: #4a7090; }
+    #search-results {
+      display: none;
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0; right: 0;
+      background: #0c2040;
+      border: 1px solid #1a4070;
+      border-radius: 7px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 200;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    }
+    #search-results.open { display: block; }
+    .sr-item {
+      padding: 10px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1a3555;
+      gap: 10px;
+      color: #d0dce8;
+    }
+    .sr-item:last-child { border-bottom: none; }
+    .sr-item:hover { background: #163055; color: var(--accent); }
+    .sr-name { flex: 1; }
+    .sr-eco {
+      color: #4a7090;
+      font-size: 11px;
+      font-family: monospace;
+      white-space: nowrap;
+    }
+
+    /* ════════════════ BODY ════════════════ */
+    #body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ════════════════ BOARD AREA ════════════════ */
+    #board-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 30px;
+      overflow: hidden;
+    }
+    #board-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      user-select: none;
+    }
+    #board-row {
+      display: flex;
+      align-items: stretch;
+    }
+    #rank-labels {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      width: 22px;
+      padding-right: 4px;
+      color: #8ab4d4;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: right;
+      line-height: 1;
+    }
+    #rank-labels span { height: var(--sq); display: flex; align-items: center; justify-content: flex-end; }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--sq));
+      grid-template-rows: repeat(8, var(--sq));
+      border: 3px solid #0b2545;
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    #file-labels {
+      display: flex;
+      width: var(--board);
+      margin-left: 26px;
+      margin-top: 5px;
+      justify-content: space-around;
+      color: #8ab4d4;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    #file-labels span { width: var(--sq); text-align: center; }
+
+    /* Squares */
+    .sq {
+      width: var(--sq);
+      height: var(--sq);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .sq.light { background: var(--light-sq); }
+    .sq.dark  { background: var(--dark-sq);  }
+    .sq.last-move.light { background: var(--last-light); }
+    .sq.last-move.dark  { background: var(--last-dark);  }
+
+    /* Pieces as SVG images */
+    .piece-img {
+      width: calc(var(--sq) * 0.88);
+      height: calc(var(--sq) * 0.88);
+      display: block;
+      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.55)) drop-shadow(0px 1px 1px rgba(0,0,0,0.3));
+      pointer-events: none;
+    }
+
+    /* ════════════════ SIDEBAR ════════════════ */
+    #sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      border-left: 1px solid #c8a870;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #sb-inner {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+    }
+    #sb-inner::-webkit-scrollbar { width: 5px; }
+    #sb-inner::-webkit-scrollbar-thumb { background: #c8a870; border-radius: 3px; }
+    #sb-inner::-webkit-scrollbar-track { background: #ead9b8; }
+
+    #sb-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--sb-dim);
+      text-align: center;
+      padding: 30px;
+      gap: 12px;
+    }
+    #sb-empty .chess-icon { font-size: 56px; opacity: 0.25; color: var(--sb-accent); }
+    #sb-empty h2 { font-size: 16px; color: var(--sb-title); font-weight: 600; }
+    #sb-empty p { font-size: 13px; color: var(--sb-dim); line-height: 1.6; }
+
+    #sb-bio { display: none; }
+
+    .bio-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--sb-text);
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .bio-varname {
+      color: var(--sb-dim);
+      font-size: 13px;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+    .bio-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .bio-tag {
+      background: var(--sb-box-bg);
+      border: 1px solid var(--sb-box-bd);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      color: var(--sb-dim);
+      font-weight: 500;
+    }
+    .bio-tag.accent {
+      border-color: var(--sb-accent);
+      color: var(--sb-accent);
+      background: #f7edd6;
+      font-weight: 700;
+    }
+
+    /* Win/Draw/Loss bar */
+    .wdl-bar {
+      height: 22px;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      margin-bottom: 6px;
+      border: 1px solid var(--sb-box-bd);
+    }
+    .wdl-w { background: #e8e8e8; }
+    .wdl-d { background: #9a9a9a; }
+    .wdl-b { background: #3a3a3a; }
+    .wdl-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--sb-dim);
+      margin-bottom: 18px;
+      font-weight: 500;
+    }
+    .wdl-labels span { display: flex; align-items: center; gap: 4px; }
+    .wdl-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .stat-box {
+      background: var(--sb-box-bg);
+      border: 1px solid var(--sb-box-bd);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: var(--sb-title);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--sb-text); }
+    .stat-val.small { font-size: 14px; }
+
+    /* Moves */
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--sb-title);
+      margin-bottom: 8px;
+      margin-top: 2px;
+      font-weight: 700;
+    }
+    .moves-line {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--sb-text);
+      background: var(--sb-box-bg);
+      border: 1px solid var(--sb-box-bd);
+      border-radius: 6px;
+      padding: 10px 14px;
+      line-height: 1.8;
+      margin-bottom: 20px;
+    }
+    .move-num { color: var(--sb-accent); font-weight: 700; }
+    .move-san { color: var(--sb-text); }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--sb-divider);
+      margin: 4px 0 18px;
+    }
+
+    /* Variations */
+    .var-item {
+      padding: 9px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--sb-text);
+      transition: background .1s, color .1s;
+      border: 1px solid transparent;
+      margin-bottom: 4px;
+    }
+    .var-item:hover {
+      background: var(--sb-box-bg);
+      color: var(--sb-accent);
+      border-color: var(--sb-box-bd);
+    }
+    .var-item.active {
+      background: #f7edd6;
+      border-color: var(--sb-accent);
+      color: var(--sb-accent);
+    }
+    .var-subname {
+      color: var(--sb-dim);
+      font-size: 12px;
+      display: block;
+      margin-top: 2px;
     }
   </style>
 </head>
 <body>
-  <h1>EGCO</h1>
-  <p>Easy Guide to Chess Openings — coming soon.</p>
+
+<!-- Header -->
+<div id="header">
+  <div id="logo">EGCO <span>Easy Guide to Chess Openings</span></div>
+  <div id="search-wrap">
+    <input id="search-input" type="text" placeholder="Search openings…" autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+</div>
+
+<!-- Body -->
+<div id="body">
+
+  <!-- Board -->
+  <div id="board-area">
+    <div id="board-wrap">
+      <div id="board-row">
+        <div id="rank-labels">
+          <span>8</span><span>7</span><span>6</span><span>5</span>
+          <span>4</span><span>3</span><span>2</span><span>1</span>
+        </div>
+        <div id="board"></div>
+      </div>
+      <div id="file-labels">
+        <span>a</span><span>b</span><span>c</span><span>d</span>
+        <span>e</span><span>f</span><span>g</span><span>h</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sb-inner">
+      <div id="sb-empty">
+        <div class="chess-icon">♟</div>
+        <h2>Select an Opening</h2>
+        <p>Search for a chess opening above to see its position, statistics, and variations.</p>
+      </div>
+      <div id="sb-bio"></div>
+    </div>
+  </div>
+
+</div>
+
 <script>
+/* ══════════════════════════════════════
+   EGCO – Easy Guide to Chess Openings
+══════════════════════════════════════ */
+
+const BASE = 'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/';
+const PIECE_SVGS = {
+  wk: BASE+'wK.svg', wq: BASE+'wQ.svg', wr: BASE+'wR.svg',
+  wb: BASE+'wB.svg', wn: BASE+'wN.svg', wp: BASE+'wP.svg',
+  bk: BASE+'bK.svg', bq: BASE+'bQ.svg', br: BASE+'bR.svg',
+  bb: BASE+'bB.svg', bn: BASE+'bN.svg', bp: BASE+'bP.svg',
+};
+
+let openings   = [];   // all rows from CSV
+let currentOpening = null;
+
+/* ── Parse moves string "1.e4 Nf6 2.e5 Nd5" → ['e4','Nf6','e5','Nd5'] ── */
+function parseMoves(movesStr) {
+  if (!movesStr) return [];
+  return movesStr.trim()
+    .split(/\s+/)
+    .map(t => t.replace(/^\d+\./, ''))
+    .filter(t => t.length > 0 && !/^\d+$/.test(t));
+}
+
+/* ── Apply moves via chess.js, return {chess, lastMove} ── */
+function applyMoves(movesList) {
+  const chess = new Chess();
+  let lastMove = null;
+  for (const san of movesList) {
+    try {
+      const result = chess.move(san);
+      if (!result) { console.warn('Invalid move:', san); break; }
+      lastMove = { from: result.from, to: result.to };
+    } catch (e) {
+      console.error('Error applying move:', san, e);
+      break;
+    }
+  }
+  return { chess, lastMove };
+}
+
+/* ── Render board from chess.js instance ── */
+function renderBoard(chess, lastMove) {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  const state = chess.board(); // [0..7][0..7], row0=rank8
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const file = 'abcdefgh'[col];
+      const rank = 8 - row;
+      const sqId = file + rank;
+      const isLight = (row + col) % 2 === 0;
+      const isLastMove = lastMove && (sqId === lastMove.from || sqId === lastMove.to);
+      const sq = document.createElement('div');
+      sq.className = 'sq ' + (isLight ? 'light' : 'dark') + (isLastMove ? ' last-move' : '');
+
+      const cell = state[row][col];
+      if (cell) {
+        const key = cell.color + cell.type;
+        const url = PIECE_SVGS[key];
+        if (url) {
+          const img = document.createElement('img');
+          img.className = 'piece-img';
+          img.src = url;
+          img.alt = key;
+          img.draggable = false;
+          sq.appendChild(img);
+        }
+      }
+      boardEl.appendChild(sq);
+    }
+  }
+}
+
+/* ── Format moves for sidebar display ── */
+function formatMovesHTML(movesList) {
+  let html = '';
+  for (let i = 0; i < movesList.length; i++) {
+    if (i % 2 === 0) {
+      html += `<span class="move-num">${Math.floor(i/2)+1}.</span> `;
+    }
+    html += `<span class="move-san">${movesList[i]}</span>  `;
+  }
+  return html.trim();
+}
+
+/* ── Get base name (everything before first comma) ── */
+function baseName(name) {
+  return name.split(',')[0].trim();
+}
+
+/* ── Select and display an opening ── */
+function selectOpening(opening) {
+  try {
+    currentOpening = opening;
+
+    // Field names from CSV: Opening, Colour, Num Games, ECO, Last Played,
+    // Perf Rating, Avg Player, Player Win %, Draw %, Opponent Win %,
+    // Moves, moves_list, move1w, move1b, move2w, move2b, move3w, move3b,
+    // move4w, move4b, White_win%, Black_win%, White_odds, White_Wins, Black_Wins
+    // Note: first column has no header name (index number)
+
+    const movesStr = opening['Moves'] || opening['moves_list'] || '';
+    const movesList = parseMoves(movesStr);
+    const { chess, lastMove } = applyMoves(movesList);
+    renderBoard(chess, lastMove);
+
+    // Close search
+    document.getElementById('search-input').value = opening['Opening'] || '';
+    document.getElementById('search-results').classList.remove('open');
+
+    // Build sidebar stats
+    const wPct  = parseFloat(opening['White_win%'])  || 0;
+    const bPct  = parseFloat(opening['Black_win%'])  || 0;
+    const dPct  = parseFloat(opening['Draw %'])      || 0;
+    const total = (wPct + dPct + bPct) || 1;
+
+    const eco      = opening['ECO']          || '—';
+    const colour   = opening['Colour']       || '—';
+    const games    = parseInt(opening['Num Games']) || 0;
+    const perf     = opening['Perf Rating']  || '—';
+    const avgRat   = opening['Avg Player']   || '—';
+    const lastPlay = opening['Last Played']
+      ? String(opening['Last Played']).split('T')[0]
+      : '—';
+
+    const base = baseName(opening['Opening'] || '');
+    const variations = openings
+      .filter(o => baseName(o['Opening'] || '') === base && o !== opening)
+      .sort((a, b) => (parseInt(b['Num Games']) || 0) - (parseInt(a['Num Games']) || 0));
+
+    const varHTML = variations.length ? `
+      <div class="section-title">Other Variations</div>
+      ${variations.map(v => {
+        const subname = (v['Opening'] || '').includes(',')
+          ? v['Opening'].split(',').slice(1).join(',').trim()
+          : v['Opening'];
+        return `<div class="var-item" data-idx="${openings.indexOf(v)}">
+          ${v['Opening'] || ''}
+          <span class="var-subname">ECO ${v['ECO'] || '—'} · ${(parseInt(v['Num Games']) || 0).toLocaleString()} games</span>
+        </div>`;
+      }).join('')}
+    ` : '';
+
+    const nameDisplay = opening['Opening'] || 'Unknown Opening';
+    const [mainName, ...varParts] = nameDisplay.split(',');
+    const varName = varParts.join(',').trim();
+
+    const colourLabel = colour
+      ? colour.charAt(0).toUpperCase() + colour.slice(1) + ' advantage'
+      : '—';
+
+    document.getElementById('sb-empty').style.display = 'none';
+    const bio = document.getElementById('sb-bio');
+    bio.style.display = 'block';
+    bio.innerHTML = `
+      <div class="bio-name">${mainName}</div>
+      ${varName ? `<div class="bio-varname">${varName}</div>` : ''}
+      <div class="bio-meta">
+        <span class="bio-tag accent">${eco}</span>
+        <span class="bio-tag">${colourLabel}</span>
+        <span class="bio-tag">${games.toLocaleString()} games</span>
+      </div>
+
+      <div class="section-title">Results</div>
+      <div class="wdl-bar">
+        <div class="wdl-w" style="flex:${wPct/total}"></div>
+        <div class="wdl-d" style="flex:${dPct/total}"></div>
+        <div class="wdl-b" style="flex:${bPct/total}"></div>
+      </div>
+      <div class="wdl-labels">
+        <span><span class="wdl-dot" style="background:#e8e8e8;border:1px solid #ccc"></span>White ${wPct}%</span>
+        <span><span class="wdl-dot" style="background:#9a9a9a"></span>Draw ${dPct}%</span>
+        <span><span class="wdl-dot" style="background:#3a3a3a"></span>Black ${bPct}%</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Avg Rating</div>
+          <div class="stat-val">${avgRat}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Perf Rating</div>
+          <div class="stat-val">${perf}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Last Played</div>
+          <div class="stat-val small">${lastPlay}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">ECO Code</div>
+          <div class="stat-val small">${eco}</div>
+        </div>
+      </div>
+
+      <div class="section-title">Move Sequence</div>
+      <div class="moves-line">${formatMovesHTML(movesList)}</div>
+
+      ${variations.length ? '<div class="divider"></div>' : ''}
+      ${varHTML}
+    `;
+
+    // Variation click handlers
+    bio.querySelectorAll('.var-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx);
+        if (!isNaN(idx) && openings[idx]) selectOpening(openings[idx]);
+      });
+    });
+
+    document.getElementById('sb-inner').scrollTop = 0;
+
+  } catch (err) {
+    console.error('selectOpening error:', err, opening);
+  }
+}
+
+/* ════════════════════════════════════
+   Search
+════════════════════════════════════ */
+function initSearch() {
+  const input   = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    results.innerHTML = '';
+    if (!q) { results.classList.remove('open'); return; }
+    const matches = openings.filter(o =>
+      (o['Opening'] || '').toLowerCase().includes(q)
+    ).slice(0, 12);
+    if (!matches.length) { results.classList.remove('open'); return; }
+    matches.forEach(o => {
+      const div = document.createElement('div');
+      div.className = 'sr-item';
+      div.innerHTML = `<span class="sr-name">${o['Opening'] || ''}</span><span class="sr-eco">${o['ECO']||''}</span>`;
+      div.addEventListener('click', () => selectOpening(o));
+      results.appendChild(div);
+    });
+    results.classList.add('open');
+  });
+
+  document.addEventListener('click', e => {
+    if (!document.getElementById('search-wrap').contains(e.target))
+      results.classList.remove('open');
+  });
+}
+
+/* ════════════════════════════════════
+   Init
+════════════════════════════════════ */
+async function main() {
+  // Draw starting position
+  try {
+    const startChess = new Chess();
+    renderBoard(startChess, null);
+  } catch (e) {
+    console.error('Error rendering start position:', e);
+  }
+
+  // Load CSV
+  try {
+    const text = await fetch('openings.csv').then(r => {
+      if (!r.ok) throw new Error('CSV fetch failed: ' + r.status);
+      return r.text();
+    });
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    if (parsed.errors && parsed.errors.length > 0) {
+      console.warn('CSV parse warnings:', parsed.errors.slice(0, 3));
+    }
+    openings = parsed.data.filter(r => r['Opening'] && r['Opening'].trim());
+    console.log('Loaded', openings.length, 'openings');
+    console.log('Sample fields:', Object.keys(openings[0] || {}));
+  } catch (e) {
+    console.error('Error loading CSV:', e);
+  }
+
+  
+  initSearch();
+}
+
+main();
 </script>
 </body>
 </html>
