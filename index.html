@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EGCO – Easy Guide to Chess Openings</title>
+  <title>The Chess Opening Database</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
@@ -15,7 +15,7 @@
         calc((100vw - 380px - 60px) / 8)
       );
       --board: calc(8 * var(--sq));
-      --bg:         #0d1117;
+      --bg:         #2c2c2e;
       --header-bg:  #0b2545;
       --sidebar-bg: #f4e8d0;
       --accent:     #c9a456;
@@ -62,22 +62,13 @@
     }
     #logo {
       font-family: Georgia, serif;
-      font-size: 26px;
+      font-size: 20px;
       font-weight: 700;
       color: #ffffff;
-      letter-spacing: 3px;
+      letter-spacing: 1px;
       line-height: 1;
       white-space: nowrap;
       flex-shrink: 0;
-    }
-    #logo span {
-      display: block;
-      font-size: 10px;
-      font-family: sans-serif;
-      font-weight: 400;
-      color: #8ab4d4;
-      letter-spacing: 1.5px;
-      margin-top: 2px;
     }
     #search-wrap {
       position: relative;
@@ -175,10 +166,10 @@
       display: grid;
       grid-template-columns: repeat(8, var(--sq));
       grid-template-rows: repeat(8, var(--sq));
-      border: 3px solid #0b2545;
-      border-radius: 3px;
+      border: 1px solid #c4a46a;
+      border-radius: 2px;
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     }
     #file-labels {
       display: flex;
@@ -211,7 +202,6 @@
       width: calc(var(--sq) * 0.88);
       height: calc(var(--sq) * 0.88);
       display: block;
-      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.55)) drop-shadow(0px 1px 1px rgba(0,0,0,0.3));
       pointer-events: none;
     }
 
@@ -397,7 +387,7 @@
 
 <!-- Header -->
 <div id="header">
-  <div id="logo">EGCO <span>Easy Guide to Chess Openings</span></div>
+  <div id="logo">The Chess Opening Database</div>
   <div id="search-wrap">
     <input id="search-input" type="text" placeholder="Search openings…" autocomplete="off" />
     <div id="search-results"></div>
