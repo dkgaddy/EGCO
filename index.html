@@ -886,9 +886,15 @@ function getMatchingOpenings(moves) {
 /* ── Switch sidebar to Manual Mode ── */
 function enterManualMode() {
   manualMode = true;
+  currentMovesList = [];
+  currentMoveIndex = 0;
+  selectedSquare = null;
+  const { chess } = applyMoves([]);
+  renderBoard(chess, null);
   document.getElementById('sb-empty').style.display = 'none';
   document.getElementById('sb-bio').style.display   = 'none';
   document.getElementById('manual-panel').style.display = 'block';
+  updateManualSidebar();
 }
 
 /* ── Rebuild the manual mode sidebar content ── */
