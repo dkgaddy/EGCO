@@ -14,4 +14,4 @@ Then open http://localhost:8083
 - Edit `index.html` and refresh
 
 ## Deployment
-TBD
+**Live URL:** https://chess.explosiveconcepts.com

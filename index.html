@@ -3,9 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Chess Opening Database</title>
+  <title>The Chess Opener</title>
+  <meta name="description" content="A visual tool for exploring and practicing standard chess openings. Browse hundreds of openings, step through move sequences, and play interactively to identify openings in real time." />
+
+  <!-- Favicon: inline SVG chess king on slate blue -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234a6282'/><text x='16' y='25' font-size='22' text-anchor='middle' fill='white'>♚</text></svg>" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://chess.explosiveconcepts.com" />
+  <meta property="og:title"       content="The Chess Opener" />
+  <meta property="og:description" content="Explore and practice standard chess openings interactively. Search hundreds of openings, step through moves, and play pieces to identify openings in real time." />
+  <meta property="og:image"       content="https://chess.explosiveconcepts.com/og-image.png" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="The Chess Opener" />
+  <meta name="twitter:description" content="Explore and practice standard chess openings interactively. Search hundreds of openings, step through moves, and play pieces to identify openings in real time." />
+  <meta name="twitter:image"       content="https://chess.explosiveconcepts.com/og-image.png" />
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -15,17 +36,17 @@
         calc((100vw - 380px - 60px) / 8)
       );
       --board: calc(8 * var(--sq));
-      --bg:         #2c2c2e;
-      --header-bg:  #0b2545;
+      --bg:         #3f4e66;
+      --header-bg:  #4a6282;
       --sidebar-bg: #f4e8d0;
       --accent:     #c9a456;
       --accent-dim: #7a5c14;
       --text:       #dcdfe4;
       --dim:        #717880;
       --light-sq:   #f0d9b5;
-      --dark-sq:    #b58863;
-      --last-light: rgba(205, 210, 106, 0.7);
-      --last-dark:  rgba(170, 162, 58, 0.7);
+      --dark-sq:    #6b8cae;
+      --last-light: rgba(180, 210, 240, 0.65);
+      --last-dark:  rgba(90, 140, 190, 0.65);
       --sidebar-w:  360px;
       /* Sidebar light-theme colors */
       --sb-text:    #2a1f0e;
@@ -50,7 +71,7 @@
     /* ════════════════ HEADER ════════════════ */
     #header {
       background: var(--header-bg);
-      border-bottom: 1px solid #0d3060;
+      border-bottom: 1px solid #3a5270;
       height: 58px;
       display: flex;
       align-items: center;
@@ -69,6 +90,8 @@
       line-height: 1;
       white-space: nowrap;
       flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
     }
     #search-wrap {
       position: relative;
@@ -145,6 +168,20 @@
       align-items: flex-start;
       user-select: none;
     }
+    #flip-btn {
+      background: none;
+      border: none;
+      color: #8ab4d4;
+      font-size: 30px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 6px;
+      line-height: 1;
+      align-self: flex-start;
+      margin-right: 8px;
+      transition: color 0.15s, background 0.15s;
+    }
+    #flip-btn:hover { color: #fff; background: rgba(138,180,212,0.15); }
     #board-row {
       display: flex;
       align-items: stretch;
@@ -166,7 +203,7 @@
       display: grid;
       grid-template-columns: repeat(8, var(--sq));
       grid-template-rows: repeat(8, var(--sq));
-      border: 1px solid #c4a46a;
+      border: 1px solid #7a9dbf;
       border-radius: 2px;
       overflow: hidden;
       box-shadow: 0 4px 16px rgba(0,0,0,0.35);
@@ -196,6 +233,27 @@
     .sq.dark  { background: var(--dark-sq);  }
     .sq.last-move.light { background: var(--last-light); }
     .sq.last-move.dark  { background: var(--last-dark);  }
+    .sq.selected { background: rgba(80,160,255,0.55) !important; }
+    .sq.legal-dest::after {
+      content: '';
+      position: absolute;
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.18);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .sq.capture-dest::after {
+      content: '';
+      position: absolute;
+      width: 90%;
+      height: 90%;
+      border-radius: 50%;
+      border: 5px solid rgba(0,0,0,0.16);
+      pointer-events: none;
+      z-index: 2;
+    }
 
     /* Pieces as SVG images */
     .piece-img {
@@ -203,6 +261,7 @@
       height: calc(var(--sq) * 0.88);
       display: block;
       pointer-events: none;
+      filter: url(#piece-outline-blue) sepia(0.2) hue-rotate(185deg) saturate(0.6) brightness(0.97);
     }
 
     /* ════════════════ SIDEBAR ════════════════ */
@@ -227,17 +286,16 @@
     #sb-empty {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       height: 100%;
-      color: var(--sb-dim);
-      text-align: center;
-      padding: 30px;
-      gap: 12px;
+      padding: 30px 24px;
+      gap: 14px;
     }
-    #sb-empty .chess-icon { font-size: 56px; opacity: 0.25; color: var(--sb-accent); }
-    #sb-empty h2 { font-size: 16px; color: var(--sb-title); font-weight: 600; }
-    #sb-empty p { font-size: 13px; color: var(--sb-dim); line-height: 1.6; }
+    #sb-empty .sb-logo { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: var(--sb-title); display: flex; align-items: center; gap: 10px; }
+    #sb-empty .sb-logo i { color: var(--sb-accent); font-size: 26px; }
+    #sb-empty p { font-size: 13px; color: var(--sb-dim); line-height: 1.7; }
+    #sb-empty .sb-cta { font-size: 13px; color: var(--sb-text); font-style: italic; line-height: 1.6; }
 
     #sb-bio { display: none; }
 
@@ -345,7 +403,42 @@
       margin-bottom: 20px;
     }
     .move-num { color: var(--sb-accent); font-weight: 700; }
-    .move-san { color: var(--sb-text); }
+    .move-san { color: var(--sb-text); border-radius: 3px; padding: 1px 3px; }
+    .move-san.active { background: var(--sb-box-bd); color: var(--sb-accent); font-weight: 700; }
+
+    /* Move stepper controls */
+    .move-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: var(--sb-box-bg);
+      border: 1px solid var(--sb-box-bd);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 20px;
+    }
+    .mc-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--sb-accent);
+      cursor: pointer;
+      font-size: 15px;
+      padding: 5px 9px;
+      border-radius: 5px;
+      line-height: 1;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .mc-btn:hover:not(:disabled) { background: var(--sb-box-bd); border-color: var(--sb-box-bd); }
+    .mc-btn:disabled { color: var(--sb-dim); cursor: default; }
+    #mc-status, .mc-status {
+      min-width: 80px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sb-accent);
+      letter-spacing: 0.5px;
+    }
 
     /* Divider */
     .divider {
@@ -375,19 +468,171 @@
       border-color: var(--sb-accent);
       color: var(--sb-accent);
     }
+    /* Manual mode panel */
+    #manual-panel {
+      display: none;
+      padding: 20px 18px 16px;
+    }
+    .manual-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--sb-text);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--sb-divider);
+      letter-spacing: 0.3px;
+    }
+    .matches-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--sb-title);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .match-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      gap: 8px;
+    }
+    .match-item:hover { background: var(--sb-box-bg); border-color: var(--sb-box-bd); }
+    .match-name { font-size: 12px; font-weight: 500; color: var(--sb-text); flex: 1; }
+    .match-games { font-size: 11px; color: var(--sb-dim); white-space: nowrap; }
+    .no-match { font-style: italic; color: var(--sb-dim); font-size: 13px; padding: 6px 2px; }
+    .mode-btn {
+      display: block;
+      width: 100%;
+      background: none;
+      border: 1px solid var(--sb-box-bd);
+      color: var(--sb-accent);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      text-align: center;
+      transition: background 0.12s;
+    }
+    .mode-btn:hover { background: var(--sb-box-bg); }
+    .next-move-btn {
+      background: none;
+      border: 1px solid var(--sb-box-bd);
+      color: var(--sb-accent);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.12s;
+    }
+    .next-move-btn:hover { background: var(--sb-box-bg); }
+
     .var-subname {
       color: var(--sb-dim);
       font-size: 12px;
       display: block;
       margin-top: 2px;
     }
+
+    /* ════════════════ RESPONSIVE ════════════════ */
+
+    /* Compact header on all small screens */
+    @media (max-width: 800px) {
+      #header { padding: 0 14px; gap: 14px; }
+      #logo { font-size: 16px; letter-spacing: 0.3px; }
+      #search-results { width: calc(100vw - 28px); max-width: 400px; }
+    }
+
+    /* Portrait phones & tablets: sidebar drops to bottom */
+    @media (max-width: 800px) and (orientation: portrait) {
+      :root {
+        --sq: min(
+          calc((100vh - 58px - 42vh - 20px) / 8),
+          calc((100vw - 96px) / 8)
+        );
+        --sidebar-w: 100%;
+      }
+      #body { flex-direction: column; }
+      #board-area {
+        flex: 1 1 0;
+        min-height: 0;
+        padding: 10px 10px 4px;
+      }
+      #board-wrap { align-items: center; }
+      #flip-btn { font-size: 22px; margin-right: 4px; }
+      #sidebar {
+        width: 100% !important;
+        height: 42vh;
+        min-height: 200px;
+        border-left: none;
+        border-top: 2px solid var(--sb-box-bd);
+        flex-shrink: 0;
+      }
+      #sb-inner { padding: 14px 14px 12px; }
+      #sb-empty { padding: 16px 14px; gap: 10px; }
+      #sb-empty .sb-logo { font-size: 18px; }
+      #sb-empty p, #sb-empty .sb-cta { font-size: 12px; }
+      .bio-name { font-size: 17px; }
+      .move-controls { padding: 6px 8px; }
+    }
+
+    /* Narrow landscape (phone on its side) */
+    @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+      :root {
+        --sq: min(
+          calc((100vh - 58px - 28px) / 8),
+          calc((100vw - 280px - 28px) / 8)
+        );
+        --sidebar-w: 280px;
+      }
+      #header { height: 46px; }
+      #logo { font-size: 15px; }
+      #board-area { padding: 10px 14px; }
+      #sb-inner { padding: 12px 14px; }
+    }
+
+    /* Mid-size tablets in portrait (768px) - keep sidebar on right but narrower */
+    @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) {
+      :root {
+        --sq: min(
+          calc((100vh - 58px - 38vh - 20px) / 8),
+          calc((100vw - 20px) / 8)
+        );
+      }
+      #sidebar { height: 38vh; min-height: 220px; }
+    }
+
   </style>
 </head>
 <body>
+<!-- SVG filter: remaps dark/black areas to dark blue for chess piece outlines -->
+<svg style="display:none" width="0" height="0" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="piece-outline-blue" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0.08 0.18 0.30 0.42 0.54 0.66 0.77 0.88 1.0"/>
+        <feFuncG type="table" tableValues="0.15 0.22 0.33 0.44 0.55 0.66 0.77 0.88 1.0"/>
+        <feFuncB type="table" tableValues="0.38 0.44 0.52 0.60 0.67 0.76 0.84 0.92 1.0"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
 
 <!-- Header -->
 <div id="header">
-  <div id="logo">The Chess Opening Database</div>
+  <div id="logo" onclick="location.reload()"><i class="fa-solid fa-chess"></i> The Chess Opener</div>
   <div id="search-wrap">
     <input id="search-input" type="text" placeholder="Search openings…" autocomplete="off" />
     <div id="search-results"></div>
@@ -401,6 +646,7 @@
   <div id="board-area">
     <div id="board-wrap">
       <div id="board-row">
+        <button id="flip-btn" title="Flip board"><i class="fa-solid fa-rotate"></i></button>
         <div id="rank-labels">
           <span>8</span><span>7</span><span>6</span><span>5</span>
           <span>4</span><span>3</span><span>2</span><span>1</span>
@@ -418,11 +664,12 @@
   <div id="sidebar">
     <div id="sb-inner">
       <div id="sb-empty">
-        <div class="chess-icon">♟</div>
-        <h2>Select an Opening</h2>
-        <p>Search for a chess opening above to see its position, statistics, and variations.</p>
+        <div class="sb-logo"><i class="fa-solid fa-chess"></i> The Chess Opener</div>
+        <p>A visual tool for exploring and practicing standard chess openings. Browse hundreds of openings by name, see the board position they create, and study move sequences, results, and variations.</p>
+        <p class="sb-cta">Please search for an opening above, or begin moving pieces on the board to find one.</p>
       </div>
       <div id="sb-bio"></div>
+      <div id="manual-panel"></div>
     </div>
   </div>
 
@@ -433,7 +680,7 @@
    EGCO – Easy Guide to Chess Openings
 ══════════════════════════════════════ */
 
-const BASE = 'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/';
+const BASE = 'pieces/';
 const PIECE_SVGS = {
   wk: BASE+'wK.svg', wq: BASE+'wQ.svg', wr: BASE+'wR.svg',
   wb: BASE+'wB.svg', wn: BASE+'wN.svg', wp: BASE+'wP.svg',
@@ -443,6 +690,38 @@ const PIECE_SVGS = {
 
 let openings   = [];   // all rows from CSV
 let currentOpening = null;
+let flipped = false;
+let currentMovesList = [];
+let currentMoveIndex = 0;
+let manualMode = false;
+let selectedSquare = null;
+
+/* ── Step board to a specific move index (0 = start position) ── */
+function stepToMove(idx) {
+  const total = currentMovesList.length;
+  currentMoveIndex = Math.max(0, Math.min(idx, total));
+  selectedSquare = null;
+  const { chess, lastMove } = applyMoves(currentMovesList.slice(0, currentMoveIndex));
+  renderBoard(chess, lastMove);
+
+  if (manualMode) {
+    updateManualSidebar();
+    return;
+  }
+
+  // Opening mode: highlight active move in sequence
+  document.querySelectorAll('#sb-bio .move-san').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.idx) === currentMoveIndex - 1);
+  });
+
+  // Update status label and buttons
+  const statusEl = document.getElementById('mc-status');
+  if (statusEl) statusEl.textContent = currentMoveIndex === 0 ? 'Start' : `Move ${currentMoveIndex} / ${total}`;
+  const atStart = currentMoveIndex <= 0;
+  const atEnd   = currentMoveIndex >= total;
+  ['mc-first','mc-prev'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = atStart; });
+  ['mc-next','mc-last'].forEach(id  => { const b = document.getElementById(id); if (b) b.disabled = atEnd; });
+}
 
 /* ── Parse moves string "1.e4 Nf6 2.e5 Nd5" → ['e4','Nf6','e5','Nd5'] ── */
 function parseMoves(movesStr) {
@@ -470,22 +749,47 @@ function applyMoves(movesList) {
   return { chess, lastMove };
 }
 
+/* ── Update rank/file labels based on flip state ── */
+function updateLabels() {
+  const ranks = flipped ? ['1','2','3','4','5','6','7','8'] : ['8','7','6','5','4','3','2','1'];
+  const files = flipped ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h'];
+  const rl = document.getElementById('rank-labels');
+  const fl = document.getElementById('file-labels');
+  rl.innerHTML = ranks.map(r => `<span>${r}</span>`).join('');
+  fl.innerHTML = files.map(f => `<span>${f}</span>`).join('');
+}
+
 /* ── Render board from chess.js instance ── */
 function renderBoard(chess, lastMove) {
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
   const state = chess.board(); // [0..7][0..7], row0=rank8
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  const rowOrder = flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  const colOrder = flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+
+  // Pre-compute legal destinations for selected square
+  const legalDests = new Set();
+  if (selectedSquare) {
+    chess.moves({ square: selectedSquare, verbose: true }).forEach(m => legalDests.add(m.to));
+  }
+
+  for (const row of rowOrder) {
+    for (const col of colOrder) {
       const file = 'abcdefgh'[col];
       const rank = 8 - row;
       const sqId = file + rank;
       const isLight = (row + col) % 2 === 0;
       const isLastMove = lastMove && (sqId === lastMove.from || sqId === lastMove.to);
       const sq = document.createElement('div');
-      sq.className = 'sq ' + (isLight ? 'light' : 'dark') + (isLastMove ? ' last-move' : '');
+      let cls = 'sq ' + (isLight ? 'light' : 'dark') + (isLastMove ? ' last-move' : '');
+      if (sqId === selectedSquare) cls += ' selected';
+      sq.className = cls;
 
       const cell = state[row][col];
+      if (legalDests.has(sqId)) {
+        sq.classList.add(cell ? 'capture-dest' : 'legal-dest');
+      }
+
       if (cell) {
         const key = cell.color + cell.type;
         const url = PIECE_SVGS[key];
@@ -498,9 +802,12 @@ function renderBoard(chess, lastMove) {
           sq.appendChild(img);
         }
       }
+
+      sq.addEventListener('click', () => handleSquareClick(sqId, chess));
       boardEl.appendChild(sq);
     }
   }
+  updateLabels();
 }
 
 /* ── Format moves for sidebar display ── */
@@ -510,9 +817,173 @@ function formatMovesHTML(movesList) {
     if (i % 2 === 0) {
       html += `<span class="move-num">${Math.floor(i/2)+1}.</span> `;
     }
-    html += `<span class="move-san">${movesList[i]}</span>  `;
+    html += `<span class="move-san" data-idx="${i}">${movesList[i]}</span>  `;
   }
   return html.trim();
+}
+
+/* ── Handle square click for manual piece movement ── */
+function handleSquareClick(sqId, chess) {
+  const piece = chess.get(sqId);
+  const turn  = chess.turn(); // 'w' or 'b'
+
+  if (selectedSquare === null) {
+    // Select a piece that belongs to the side to move
+    if (piece && piece.color === turn) {
+      selectedSquare = sqId;
+      renderBoard(chess, null);
+    }
+    return;
+  }
+
+  if (sqId === selectedSquare) {
+    // Deselect
+    selectedSquare = null;
+    renderBoard(chess, null);
+    return;
+  }
+
+  if (piece && piece.color === turn) {
+    // Switch selection to another friendly piece
+    selectedSquare = sqId;
+    renderBoard(chess, null);
+    return;
+  }
+
+  // Attempt the move
+  const result = chess.move({ from: selectedSquare, to: sqId, promotion: 'q' });
+  selectedSquare = null;
+
+  if (result) {
+    // Truncate any future moves (if stepped back) and append new move
+    currentMovesList = currentMovesList.slice(0, currentMoveIndex);
+    currentMovesList.push(result.san);
+    currentMoveIndex = currentMovesList.length;
+    if (!manualMode) enterManualMode();
+    renderBoard(chess, { from: result.from, to: result.to });
+    updateManualSidebar();
+  } else {
+    renderBoard(chess, null);
+  }
+}
+
+/* ── Filter openings whose move prefix matches the given moves ── */
+function getMatchingOpenings(moves) {
+  if (!moves.length) return [];
+  return openings
+    .filter(o => {
+      const om = parseMoves(o['Moves'] || '');
+      if (om.length < moves.length) return false;
+      for (let i = 0; i < moves.length; i++) {
+        if (om[i] !== moves[i]) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (parseInt(b['Num Games']) || 0) - (parseInt(a['Num Games']) || 0))
+    .slice(0, 25);
+}
+
+/* ── Switch sidebar to Manual Mode ── */
+function enterManualMode() {
+  manualMode = true;
+  document.getElementById('sb-empty').style.display = 'none';
+  document.getElementById('sb-bio').style.display   = 'none';
+  document.getElementById('manual-panel').style.display = 'block';
+}
+
+/* ── Rebuild the manual mode sidebar content ── */
+function updateManualSidebar() {
+  const panel   = document.getElementById('manual-panel');
+  const moves   = currentMovesList;
+  const total   = moves.length;
+  const atStart = currentMoveIndex <= 0;
+  const atEnd   = currentMoveIndex >= total;
+  const status  = currentMoveIndex === 0 ? 'Start' : `Move ${currentMoveIndex} / ${total}`;
+
+  // Match against what's currently on the board (up to currentMoveIndex)
+  const boardMoves = moves.slice(0, currentMoveIndex);
+  const matches = getMatchingOpenings(boardMoves);
+
+  // Auto-load if the user has completed the only remaining opening
+  if (matches.length === 1 && currentMoveIndex >= parseMoves(matches[0]['Moves'] || '').length) {
+    selectOpening(matches[0]);
+    return;
+  }
+
+  let matchesHTML;
+  if (!boardMoves.length) {
+    matchesHTML = '';
+  } else if (!matches.length) {
+    matchesHTML = '<div class="no-match">something of your own</div>';
+  } else {
+    matchesHTML = matches.map(o => {
+      const idx = openings.indexOf(o);
+      return `<div class="match-item" data-idx="${idx}">
+        <button class="next-move-btn" data-idx="${idx}">Next Move</button>
+        <span class="match-name">${o['Opening'] || ''}</span>
+      </div>`;
+    }).join('');
+  }
+
+  panel.innerHTML = `
+    <button id="reset-board-btn" class="mode-btn">Reset the Board</button>
+    <div class="manual-title">Manual Mode</div>
+    <div class="section-title">Move Sequence</div>
+    <div class="moves-line">${moves.length ? formatMovesHTML(moves) : '<span style="color:var(--sb-dim);font-style:italic">No moves yet</span>'}</div>
+    <div class="move-controls" style="justify-content:center">
+      <button class="mc-btn" id="mm-first" title="Back to start"${atStart?' disabled':''}><i class="fa-solid fa-backward-step"></i></button>
+      <button class="mc-btn" id="mm-prev"  title="Undo move"${atStart?' disabled':''}><i class="fa-solid fa-chevron-left"></i></button>
+      <span style="min-width:80px;text-align:center;font-size:12px;font-weight:600;color:var(--sb-accent);letter-spacing:.5px">${status}</span>
+      <button class="mc-btn" id="mm-next"  title="Step forward"${atEnd?' disabled':''}><i class="fa-solid fa-chevron-right"></i></button>
+      <button class="mc-btn" id="mm-last"  title="Last move"${atEnd?' disabled':''}><i class="fa-solid fa-forward-step"></i></button>
+    </div>
+    ${boardMoves.length ? `
+      <div class="matches-header">You are most likely opening…</div>
+      <div id="matches-list">${matchesHTML}</div>
+    ` : ''}
+  `;
+
+  // Highlight active move
+  panel.querySelectorAll('.move-san').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.idx) === currentMoveIndex - 1);
+  });
+
+  // Reset the Board
+  document.getElementById('reset-board-btn').addEventListener('click', () => {
+    currentMovesList = [];
+    currentMoveIndex = 0;
+    selectedSquare = null;
+    const { chess } = applyMoves([]);
+    renderBoard(chess, null);
+    updateManualSidebar();
+  });
+
+  // Stepper buttons
+  document.getElementById('mm-first').addEventListener('click', () => stepToMove(0));
+  document.getElementById('mm-prev').addEventListener('click',  () => stepToMove(currentMoveIndex - 1));
+  document.getElementById('mm-next').addEventListener('click',  () => stepToMove(currentMoveIndex + 1));
+  document.getElementById('mm-last').addEventListener('click',  () => stepToMove(total));
+
+  // Next Move buttons — play next move from that opening at the current board position
+  panel.querySelectorAll('.next-move-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      if (isNaN(idx) || !openings[idx]) return;
+      const matchMoves = parseMoves(openings[idx]['Moves'] || '');
+      const nextMove = matchMoves[currentMoveIndex];
+      if (!nextMove) return;
+      const { chess } = applyMoves(currentMovesList.slice(0, currentMoveIndex));
+      const result = chess.move(nextMove);
+      if (result) {
+        currentMovesList = currentMovesList.slice(0, currentMoveIndex);
+        currentMovesList.push(result.san);
+        currentMoveIndex = currentMovesList.length;
+        renderBoard(chess, { from: result.from, to: result.to });
+        updateManualSidebar();
+      }
+    });
+  });
 }
 
 /* ── Get base name (everything before first comma) ── */
@@ -524,6 +995,12 @@ function baseName(name) {
 function selectOpening(opening) {
   try {
     currentOpening = opening;
+    // Exit manual mode
+    manualMode = false;
+    selectedSquare = null;
+    document.getElementById('manual-panel').style.display = 'none';
+    document.getElementById('sb-empty').style.display = 'none';
+    document.getElementById('sb-bio').style.display = 'block';
 
     // Field names from CSV: Opening, Colour, Num Games, ECO, Last Played,
     // Perf Rating, Avg Player, Player Win %, Draw %, Opponent Win %,
@@ -533,8 +1010,7 @@ function selectOpening(opening) {
 
     const movesStr = opening['Moves'] || opening['moves_list'] || '';
     const movesList = parseMoves(movesStr);
-    const { chess, lastMove } = applyMoves(movesList);
-    renderBoard(chess, lastMove);
+    currentMovesList = movesList;
 
     // Close search
     document.getElementById('search-input').value = opening['Opening'] || '';
@@ -585,6 +1061,7 @@ function selectOpening(opening) {
     const bio = document.getElementById('sb-bio');
     bio.style.display = 'block';
     bio.innerHTML = `
+      <button id="enter-manual-btn" class="mode-btn">Manual Mode</button>
       <div class="bio-name">${mainName}</div>
       ${varName ? `<div class="bio-varname">${varName}</div>` : ''}
       <div class="bio-meta">
@@ -605,27 +1082,16 @@ function selectOpening(opening) {
         <span><span class="wdl-dot" style="background:#3a3a3a"></span>Black ${bPct}%</span>
       </div>
 
-      <div class="stats-grid">
-        <div class="stat-box">
-          <div class="stat-label">Avg Rating</div>
-          <div class="stat-val">${avgRat}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Perf Rating</div>
-          <div class="stat-val">${perf}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Last Played</div>
-          <div class="stat-val small">${lastPlay}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">ECO Code</div>
-          <div class="stat-val small">${eco}</div>
-        </div>
-      </div>
-
       <div class="section-title">Move Sequence</div>
       <div class="moves-line">${formatMovesHTML(movesList)}</div>
+
+      <div class="move-controls">
+        <button class="mc-btn" id="mc-first" title="First position"><i class="fa-solid fa-backward-step"></i></button>
+        <button class="mc-btn" id="mc-prev"  title="Previous move"><i class="fa-solid fa-chevron-left"></i></button>
+        <span id="mc-status">Move ${movesList.length} / ${movesList.length}</span>
+        <button class="mc-btn" id="mc-next"  title="Next move"><i class="fa-solid fa-chevron-right"></i></button>
+        <button class="mc-btn" id="mc-last"  title="Final position"><i class="fa-solid fa-forward-step"></i></button>
+      </div>
 
       ${variations.length ? '<div class="divider"></div>' : ''}
       ${varHTML}
@@ -638,6 +1104,16 @@ function selectOpening(opening) {
         if (!isNaN(idx) && openings[idx]) selectOpening(openings[idx]);
       });
     });
+
+    // Manual Mode button
+    document.getElementById('enter-manual-btn').addEventListener('click', () => enterManualMode());
+
+    // Move stepper handlers — start at final position
+    stepToMove(currentMovesList.length);
+    document.getElementById('mc-first').addEventListener('click', () => stepToMove(0));
+    document.getElementById('mc-prev').addEventListener('click',  () => stepToMove(currentMoveIndex - 1));
+    document.getElementById('mc-next').addEventListener('click',  () => stepToMove(currentMoveIndex + 1));
+    document.getElementById('mc-last').addEventListener('click',  () => stepToMove(currentMovesList.length));
 
     document.getElementById('sb-inner').scrollTop = 0;
 
@@ -708,6 +1184,13 @@ async function main() {
 
   
   initSearch();
+
+  document.getElementById('flip-btn').addEventListener('click', () => {
+    flipped = !flipped;
+    selectedSquare = null;
+    const { chess, lastMove } = applyMoves(currentMovesList.slice(0, currentMoveIndex));
+    renderBoard(chess, lastMove);
+  });
 }
 
 main();
